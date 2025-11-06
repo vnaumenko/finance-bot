@@ -1,17 +1,3 @@
-/**
- * Типы для работы бота
- */
+import { Context, SessionFlavor } from "grammy";
 
-export interface FinanceEntry {
-  date?: string;
-  category?: string;
-  amount?: number;
-  description?: string;
-  [key: string]: string | number | undefined;
-}
-
-export interface ParsedData {
-  fields: string[];
-  values: (string | number)[];
-}
-
+export type MyContext = Context & SessionFlavor<{ sheetName: string }>;

@@ -17,23 +17,18 @@ export async function getLastRow(
   sheetName: string,
   column: string = "A"
 ): Promise<number> {
-  try {
-    // Читаем данные из колонки (например A:A - вся колонка A)
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
-      range: `${sheetName}!${column}:${column}`,
-    });
+  // Читаем данные из колонки (например A:A - вся колонка A)
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
+    range: `${sheetName}!${column}:${column}`,
+  });
 
-    const values = response.data.values;
-    if (!values || values.length === 0) {
-      return 0; // Таблица пустая
-    }
-
-    return values.length; // Количество заполненных строк = номер последней строки
-  } catch (error) {
-    console.error("Ошибка при получении последней строки:", error);
-    return 0;
+  const values = response.data.values;
+  if (!values || values.length === 0) {
+    return 0; // Таблица пустая
   }
+
+  return values.length; // Количество заполненных строк = номер последней строки
 }
 
 /**
@@ -45,50 +40,22 @@ export async function addRowData(
   columns: string[],
   values: any[]
 ) {
-  try {
-    // Создаем массив запросов для каждой ячейки
-    const updates = columns.map((col, index) => ({
-      range: `${sheetName}!${col}${rowNumber}`,
-      values: [[values[index]]],
-    }));
+  // Создаем массив запросов для каждой ячейки
+  const updates = columns.map((col, index) => ({
+    range: `${sheetName}!${col}${rowNumber}`,
+    values: [[values[index]]],
+  }));
 
-    // Используем batchUpdate для обновления нескольких ячеек одновременно
-    const response = await sheets.spreadsheets.values.batchUpdate({
-      spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
-      requestBody: {
-        valueInputOption: "USER_ENTERED",
-        data: updates,
-      },
-    });
+  // Используем batchUpdate для обновления нескольких ячеек одновременно
+  const response = await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
+    requestBody: {
+      valueInputOption: "USER_ENTERED",
+      data: updates,
+    },
+  });
 
-    return response.data;
-  } catch (error) {
-    console.error("Ошибка при добавлении данных:", error);
-    throw error;
-  }
-}
-
-/**
- * Получить информацию о таблице и её листах
- */
-export async function getSpreadsheetInfo() {
-  try {
-    const response = await sheets.spreadsheets.get({
-      spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
-    });
-
-    return {
-      title: response.data.properties?.title,
-      sheets: response.data.sheets?.map((sheet) => ({
-        title: sheet.properties?.title,
-        sheetId: sheet.properties?.sheetId,
-        index: sheet.properties?.index,
-      })),
-    };
-  } catch (error) {
-    console.error("Ошибка при получении информации о таблице:", error);
-    throw error;
-  }
+  return response.data;
 }
 
 /**
