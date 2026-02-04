@@ -15,7 +15,7 @@ const sheets = google.sheets({ version: "v4", auth });
  */
 export async function getLastRow(
   sheetName: string,
-  column: string = "A"
+  column: string
 ): Promise<number> {
   // Читаем данные из колонки (например A:A - вся колонка A)
   const response = await sheets.spreadsheets.values.get({
@@ -64,14 +64,12 @@ export async function addRowData(
  */
 export async function getBalance(
   sheetName: string,
-  totalBalanceCell: string = "C26",
-  dailyLimitCell: string = "C28"
 ) {
   const response = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
     ranges: [
-      `${sheetName}!${totalBalanceCell}`,
-      `${sheetName}!${dailyLimitCell}`,
+      `${sheetName}!${process.env.CELLS_TOTAL_BALANCE}`,
+      `${sheetName}!${process.env.CELLS_DAILY_LIMIT}`,
     ],
   });
 
@@ -89,7 +87,7 @@ export async function getBalance(
 export async function getFullBalance(sheetName: string) {
   const response = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
-    ranges: [`${sheetName}!A2:B23`],
+    ranges: [`${sheetName}!${process.env.RANGE_FULL_BALANCE}`],
   });
 
   const valueRanges = response.data.valueRanges?.[0]?.values;
