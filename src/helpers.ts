@@ -1,19 +1,8 @@
-import { months } from "./contants";
 import { invariant } from "es-toolkit/util";
-
-export const getSheetName = () => {
-  const now = new Date();
-  const monthName = months[now.getMonth()];
-  const yearShort = (now.getFullYear() % 100).toString().padStart(2, "0");
-
-  return `${monthName}'${yearShort}`;
-};
 
 export const parseAddTransactionMessage = (message: string) => {
   try {
-    const [description, amount, category, wallet] = message
-      .split(",")
-      .map((part) => part.trim());
+    const [description, amount, category, wallet] = message.split(",").map((part) => part.trim());
 
     invariant(description, "Описание не может быть пустым");
     invariant(amount, "Сумма не может быть пустой");
@@ -27,7 +16,7 @@ export const parseAddTransactionMessage = (message: string) => {
         "❌ Некорректный формат сообщения.\n\n" +
           `Ошибка: ${e.message}\n` +
           "Необходимый формат: описание, сумма, категория, кошелек\n" +
-          "Пример: Продукты, 1500, Еда, Наличные"
+          "Пример: Продукты, 1500, Еда, Наличные",
       );
     }
 
@@ -37,9 +26,7 @@ export const parseAddTransactionMessage = (message: string) => {
 
 export const parseTransferTransactionMessage = (message: string) => {
   try {
-    const [path, amount, description] = message
-      .split(",")
-      .map((part) => part.trim());
+    const [path, amount, description] = message.split(",").map((part) => part.trim());
 
     invariant(path, "Путь не может быть пустым");
     invariant(amount, "Сумма не может быть пустой");
@@ -56,7 +43,7 @@ export const parseTransferTransactionMessage = (message: string) => {
         "❌ Некорректный формат сообщения.\n\n" +
           `Ошибка: ${e.message}\n` +
           "Необходимый формат: откуда > куда, сумма, описание\n" +
-          "Пример: Дебет > Кредит, 1000, оплата кредита"
+          "Пример: Дебет > Кредит, 1000, оплата кредита",
       );
     }
 
@@ -70,10 +57,8 @@ export const getFormattedBalance = (balance: string[][]) => {
       title: Math.max(max.title, row[0]?.length || 0),
       amount: Math.max(max.amount, row[1]?.length || 0),
     }),
-    { title: 0, amount: 0 }
+    { title: 0, amount: 0 },
   );
 
-  return balance.map(
-    (row) => `<code>${row[0]?.padEnd(title)} ${row[1]?.padStart(amount)}</code>`
-  );
+  return balance.map((row) => `<code>${row[0]?.padEnd(title)} ${row[1]?.padStart(amount)}</code>`);
 };

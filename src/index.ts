@@ -1,13 +1,12 @@
 import "dotenv/config";
 import { Bot, session } from "grammy";
-import { getLastRow, addRowData, getBalance, getFullBalance } from "./sheets";
+import { getLastRow, addRowData, getBalance, getFullBalance, initializeSheets } from "./sheets";
 import {
   getFormattedBalance,
-  getSheetName,
   parseAddTransactionMessage,
   parseTransferTransactionMessage,
 } from "./helpers";
-import { MyContext } from "./types";
+import { MyContext, Settings } from "./types";
 import { invariant } from "es-toolkit";
 
 const bot = new Bot<MyContext>(process.env.BOT_TOKEN || "");
@@ -21,21 +20,31 @@ await bot.api.setMyCommands([
 bot.use(
   session({
     initial: () => ({
-      sheetName: getSheetName(),
+      settings: {} as Settings,
     }),
-  })
+  }),
 );
 
-bot.use((ctx, next) => {
+bot.use(async (ctx, next) => {
   const userId = ctx.message?.from?.id;
 
   if (userId !== Number(process.env.ID_USER)) {
     return ctx.reply("❌ У вас нет доступа к этому боту.");
   }
 
-  ctx.session.sheetName = getSheetName();
+  try {
+    const settings = await initializeSheets();
 
-  return next();
+    ctx.session.settings = settings;
+
+    return next();
+  } catch (e) {
+    if (e instanceof Error) {
+      await ctx.reply(e.message);
+    } else {
+      await ctx.reply("❌ Неизвестная ошибка.");
+    }
+  }
 });
 
 bot.command("balance", async (ctx) => {
@@ -48,12 +57,11 @@ bot.command("balance", async (ctx) => {
 
     const processingMessage = await ctx.reply("⏳ Ищу твои копейки...");
     onDeleteProcessingMessage = () =>
-      ctx.api.deleteMessage(
-        processingMessage.chat.id,
-        processingMessage.message_id
-      );
+      ctx.api.deleteMessage(processingMessage.chat.id, processingMessage.message_id);
 
-    const fullBalance = await getFullBalance(ctx.session.sheetName);
+    const { sheet, rangeFullBalanceCell } = ctx.session.settings;
+
+    const fullBalance = await getFullBalance(sheet, rangeFullBalanceCell);
 
     invariant(fullBalance, "❌ Не удалось получить баланс.");
 
@@ -79,20 +87,17 @@ bot.command("add", async (ctx) => {
   try {
     const processingMessage = await ctx.reply("⏳ Обрабатываю...");
     onDeleteProcessingMessage = () =>
-      ctx.api.deleteMessage(
-        processingMessage.chat.id,
-        processingMessage.message_id
-      );
+      ctx.api.deleteMessage(processingMessage.chat.id, processingMessage.message_id);
 
     const text = ctx.match;
-    const sheetName = ctx.session.sheetName;
+    const { sheet, totalBalanceCell, dayLimitCell } = ctx.session.settings;
     const parsedMessage = parseAddTransactionMessage(text);
     const { description, amount, category, wallet } = parsedMessage;
-    const lastRow = await getLastRow(sheetName, "N");
+    const lastRow = await getLastRow(sheet, "N");
     const nextRow = lastRow + 1;
 
     await addRowData(
-      sheetName,
+      sheet,
       nextRow,
       ["N", "O", "Q", "R", "S"],
       [
@@ -101,15 +106,15 @@ bot.command("add", async (ctx) => {
         amount.replaceAll(".", ","),
         category,
         wallet,
-      ]
+      ],
     );
 
-    const { totalBalance, dailyLimit } = await getBalance(sheetName);
+    const { totalBalance, dailyLimit } = await getBalance(sheet, totalBalanceCell, dayLimitCell);
 
     await ctx.reply(
-      `✅ Данные добавлены в лист ${sheetName}!\n\n` +
+      `✅ Данные добавлены в лист ${sheet}!\n\n` +
         `💰 Общий баланс: ${totalBalance}\n` +
-        `💰 Можно потратить сегодня: ${dailyLimit}`
+        `💰 Можно потратить сегодня: ${dailyLimit}`,
     );
   } catch (e) {
     if (e instanceof Error) {
@@ -129,38 +134,29 @@ bot.command("transfer", async (ctx) => {
     const processingMessage = await ctx.reply("⏳ Перекидываю денюжки...");
 
     onDeleteProcessingMessage = () =>
-      ctx.api.deleteMessage(
-        processingMessage.chat.id,
-        processingMessage.message_id
-      );
+      ctx.api.deleteMessage(processingMessage.chat.id, processingMessage.message_id);
 
     const text = ctx.match;
-    const sheetName = ctx.session.sheetName;
+    const { sheet, totalBalanceCell, dayLimitCell } = ctx.session.settings;
     const parsedMessage = parseTransferTransactionMessage(text);
     const { from, to, amount, description } = parsedMessage;
 
-    const lastRow = await getLastRow(sheetName, "AA");
+    const lastRow = await getLastRow(sheet, "AA");
     const nextRow = lastRow + 1;
 
     await addRowData(
-      sheetName,
+      sheet,
       nextRow,
       ["AA", "AB", "AC", "AD", "AE"],
-      [
-        new Date().toISOString().split("T")[0],
-        from,
-        to,
-        amount.replaceAll(".", ","),
-        description,
-      ]
+      [new Date().toISOString().split("T")[0], from, to, amount.replaceAll(".", ","), description],
     );
 
-    const { totalBalance, dailyLimit } = await getBalance(sheetName);
+    const { totalBalance, dailyLimit } = await getBalance(sheet, totalBalanceCell, dayLimitCell);
 
     await ctx.reply(
-      `✅ Данные добавлены в лист ${sheetName}!\n\n` +
+      `✅ Данные добавлены в лист ${sheet}!\n\n` +
         `💰 Общий баланс: ${totalBalance}\n` +
-        `💰 Можно потратить сегодня: ${dailyLimit}`
+        `💰 Можно потратить сегодня: ${dailyLimit}`,
     );
   } catch (e) {
     if (e instanceof Error) {
